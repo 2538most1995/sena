@@ -5,7 +5,9 @@ $keys=['DB_HOST','DB_USER','DB_PASS','DB_NAME','DB_PORT','SENA_DB_NAME','SMTP_US
 $baseEnv=getenv();foreach($keys as $key)unset($baseEnv[$key]);
 function configCheck($ok,$message){if(!$ok)throw new RuntimeException($message);}
 function configRun($directory,$environment,$prefix=''){
-    $code=$prefix.'require '.var_export($directory.'/runtime_config.php',true).'; echo json_encode([DB_HOST,DB_USER,DB_PASS,DB_NAME,DB_PORT]);';
+    // Some proc_open implementations omit empty environment entries. Set them explicitly.
+    $emptyEnv='';foreach($environment as $key=>$value)if($value==='')$emptyEnv.='putenv('.var_export($key.'=',true).');';
+    $code=$emptyEnv.$prefix.'require '.var_export($directory.'/runtime_config.php',true).'; echo json_encode([DB_HOST,DB_USER,DB_PASS,DB_NAME,DB_PORT]);';
     $process=proc_open([PHP_BINARY,'-r',$code],[1=>['pipe','w'],2=>['pipe','w']],$pipes,null,$environment);
     $out=stream_get_contents($pipes[1]);$error=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);$exit=proc_close($process);
     return [$exit,$out,$error];
