@@ -39,7 +39,7 @@ $statusClass = 'badge-' . $reg['status'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายละเอียดผู้สมัคร #<?= $reg['id'] ?> | สกร.ระดับอำเภอเสนา</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/style.css?v=<?= assetVersion('css/style.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -273,7 +273,7 @@ $statusClass = 'badge-' . $reg['status'];
     </div>
 
 <dialog id="documentViewer" class="document-viewer" aria-labelledby="viewerTitle"><header class="viewer-header"><h2 id="viewerTitle">เอกสารแนบ</h2><button type="button" class="btn btn-secondary btn-sm" data-viewer-action="close" aria-label="ปิดตัวแสดงเอกสาร">ปิด ×</button></header><div class="viewer-toolbar"><button type="button" class="btn btn-secondary btn-sm" data-image-tool data-viewer-action="out" aria-label="ย่อภาพ">−</button><span class="viewer-scale" data-image-tool>100%</span><button type="button" class="btn btn-secondary btn-sm" data-image-tool data-viewer-action="in" aria-label="ขยายภาพ">+</button><button type="button" class="btn btn-secondary btn-sm" data-image-tool data-viewer-action="rotate">หมุนภาพ</button><button type="button" class="btn btn-secondary btn-sm" data-image-tool data-viewer-action="fit">พอดีหน้าจอ</button><button type="button" class="btn btn-secondary btn-sm" data-pdf-tool data-viewer-action="previous" hidden>หน้าก่อน</button><span class="pdf-page-label" data-pdf-tool hidden></span><button type="button" class="btn btn-secondary btn-sm" data-pdf-tool data-viewer-action="next" hidden>หน้าถัดไป</button><a class="viewer-original btn btn-secondary btn-sm" target="_blank" rel="noopener">เปิดแท็บใหม่</a><a class="viewer-download btn btn-primary btn-sm">ดาวน์โหลด</a></div><div class="viewer-stage"><div class="viewer-canvas"><img alt="เอกสารที่เลือก"></div><p class="pdf-status" role="status" hidden></p><canvas class="pdf-canvas" aria-label="หน้าเอกสาร PDF ที่เลือก" hidden></canvas></div></dialog>
-<script src="../js/document-viewer.js" defer></script>
+<script src="../js/document-viewer.js?v=<?= assetVersion('js/document-viewer.js') ?>" defer></script>
 
     <div class="footer">
         &copy; <?= date('Y') + 543 ?> สกร.ระดับอำเภอเสนา

@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') try {
 } catch (Throwable $e) { $error = $e->getMessage(); }
 $terms = semesterOptions($conn);
 ?>
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>จัดการภาคเรียน</title><link rel="stylesheet" href="../css/style.css"></head><body>
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>จัดการภาคเรียน</title><link rel="stylesheet" href="../css/style.css?v=<?= assetVersion('css/style.css') ?>"></head><body>
 <header class="admin-header"><h1>จัดการภาคเรียนและสำรองข้อมูล</h1><a class="btn btn-secondary" href="index.php">กลับไปทะเบียนผู้สมัคร</a></header>
 <main class="admin-container">
 <?php if ($message): ?><p class="notice success" role="status"><?= htmlspecialchars($message) ?></p><?php endif; ?>

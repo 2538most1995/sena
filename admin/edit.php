@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     } catch (Throwable $e) { foreach ($newFiles as $path) @unlink($path); $error=$e->getMessage(); $reg=array_merge($reg,array_intersect_key($_POST,$reg)); }
 }
 ?>
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>แก้ไขผู้สมัคร</title><link rel="stylesheet" href="../css/style.css"></head><body><header class="admin-header"><h1>แก้ไขข้อมูลผู้สมัคร #<?= $id ?></h1><a href="view.php?id=<?= $id ?>" class="btn btn-secondary">กลับไปดูรายละเอียด</a></header><main class="admin-container">
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>แก้ไขผู้สมัคร</title><link rel="stylesheet" href="../css/style.css?v=<?= assetVersion('css/style.css') ?>"></head><body><header class="admin-header"><h1>แก้ไขข้อมูลผู้สมัคร #<?= $id ?></h1><a href="view.php?id=<?= $id ?>" class="btn btn-secondary">กลับไปดูรายละเอียด</a></header><main class="admin-container">
 <?php if ($error): ?><p class="notice error" role="alert"><?= htmlspecialchars($error) ?></p><?php endif; ?>
 <div class="welcome-note"><strong>ตรวจข้อมูลให้ถูกต้องก่อนบันทึก</strong><p>ระบบสำรองข้อมูลและเอกสารเดิมก่อนแก้ไข รวมถึงเมื่อเปลี่ยนภาคเรียนหรือแทนที่เอกสาร</p></div>
 <form method="post" enctype="multipart/form-data"><input type="hidden" name="revision" value="<?= htmlspecialchars($revision) ?>"><input type="hidden" name="csrf" value="<?= csrfToken() ?>">

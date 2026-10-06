@@ -7,6 +7,18 @@ if (session_status() === PHP_SESSION_NONE) {
 // Load this machine's private settings without overwriting server constants.
 require_once __DIR__ . '/runtime_config.php';
 
+// Content-based versions invalidate browser caches after every asset update.
+function assetVersion($relativePath)
+{
+    static $versions = [];
+    if (!isset($versions[$relativePath])) {
+        $file = __DIR__ . '/' . $relativePath;
+        $versions[$relativePath] = is_file($file) ? substr(hash_file('sha256', $file), 0, 16) : 'missing';
+    }
+    return $versions[$relativePath];
+}
+
+
 // Upload paths
 define('UPLOAD_DIR', __DIR__ . '/uploads/');
 define('UPLOAD_PHOTOS', UPLOAD_DIR . 'photos/');
