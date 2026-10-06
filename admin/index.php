@@ -110,6 +110,7 @@ $thaiMonths = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
 
 <p class="result-count">พบ <?= $filteredTotal ?> รายการ · หน้า <?= $page ?> / <?= $pages ?></p>
         <!-- Filter Bar -->
+        <details class="registration-filters" open><summary><i class="fas fa-filter" aria-hidden="true"></i> ค้นหาและกรองผู้สมัคร <span>เลือกภาคเรียน / สถานะ</span></summary>
         <form class="filter-bar" method="GET">
             <div class="form-group"><label for="semester">ภาคเรียน</label><select name="semester" id="semester"><?php foreach (semesterOptions($conn) as $term): ?><option value="<?= htmlspecialchars($term) ?>" <?= $term === $filterSemester ? 'selected' : '' ?>><?= htmlspecialchars(semesterLabel($term)) ?></option><?php endforeach; ?></select></div>
             <div class="form-group">
@@ -162,7 +163,8 @@ $thaiMonths = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
                 <label>&nbsp;</label>
                 <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> ค้นหา</button>
             </div>
-        </form>
+        </form></details>
+        <script>const filterPanel=document.querySelector('.registration-filters');const phoneFilters=matchMedia('(max-width:767px)');filterPanel.open=!phoneFilters.matches;phoneFilters.addEventListener('change',event=>{filterPanel.open=!event.matches;});</script>
 
         <!-- Data Table -->
         <div class="data-table-wrapper">
@@ -189,19 +191,19 @@ $thaiMonths = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
                     <tbody>
                         <?php foreach ($registrations as $idx => $reg): ?>
                             <tr>
-                                <td><?= $offset + $idx + 1 ?></td>
-                                <td>
+                                <td data-label="ลำดับ" class="applicant-order"><?= $offset + $idx + 1 ?></td>
+                                <td data-label="รูปถ่าย" class="applicant-photo">
                                     <?php if ($reg['photo_file']): ?>
                                         <img src="document.php?id=<?= $reg['id'] ?>&amp;field=photo_file" class="avatar" alt="รูปถ่ายผู้สมัคร">
                                     <?php else: ?>
                                         <div class="avatar" style="background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>
                                     <?php endif; ?>
                                 </td>
-                                <td><strong><?= htmlspecialchars($reg['title'] . $reg['first_name'] . ' ' . $reg['last_name']) ?></strong></td>
-                                <td><?= htmlspecialchars($reg['education_level']) ?></td>
-                                <td style="font-size:0.75rem;"><?= htmlspecialchars(str_replace('ศกร.ระดับตำบล', '', $reg['subdistrict_center'])) ?></td>
-                                <td style="font-family:monospace;font-size:0.8rem;"><?= htmlspecialchars($reg['id_card_number']) ?></td>
-                                <td style="font-size:0.8rem;">
+                                <td data-label="ชื่อ-นามสกุล" class="applicant-name"><strong><?= htmlspecialchars($reg['title'] . $reg['first_name'] . ' ' . $reg['last_name']) ?></strong></td>
+                                <td data-label="ระดับ"><?= htmlspecialchars($reg['education_level']) ?></td>
+                                <td data-label="ศกร.ตำบล" style="font-size:0.75rem;"><?= htmlspecialchars(str_replace('ศกร.ระดับตำบล', '', $reg['subdistrict_center'])) ?></td>
+                                <td data-label="เลขบัตร" style="font-family:monospace;font-size:0.8rem;"><?= htmlspecialchars($reg['id_card_number']) ?></td>
+                                <td data-label="วันที่สมัคร" style="font-size:0.8rem;">
                                     <?php
                                     $dt = new DateTime($reg['created_at']);
                                     $d = intval($dt->format('d'));
@@ -210,22 +212,22 @@ $thaiMonths = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
                                     echo "$d {$thaiMonths[$m]} $y";
                                     ?>
                                 </td>
-                                <td><?php $complete=0;foreach (['photo_file'=>'photos','id_card_file'=>'id_cards','house_reg_file'=>'house_registrations'] as $field=>$folder) if (!empty($reg[$field]) && is_file(UPLOAD_DIR.$folder.'/'.basename($reg[$field]))) $complete++; ?><span class="badge <?= $complete===3 ? 'badge-approved' : 'badge-pending' ?>"><?= $complete ?>/3</span></td>
-                                <td>
+                                <td data-label="เอกสารหลัก"><?php $complete=0;foreach (['photo_file'=>'photos','id_card_file'=>'id_cards','house_reg_file'=>'house_registrations'] as $field=>$folder) if (!empty($reg[$field]) && is_file(UPLOAD_DIR.$folder.'/'.basename($reg[$field]))) $complete++; ?><span class="badge <?= $complete===3 ? 'badge-approved' : 'badge-pending' ?>"><?= $complete ?>/3</span></td>
+                                <td data-label="สถานะ">
                                     <?php
                                     $statusClass = 'badge-' . $reg['status'];
                                     $statusText = ['pending' => 'รอดำเนินการ', 'approved' => 'อนุมัติ', 'rejected' => 'ไม่อนุมัติ'];
                                     ?>
                                     <span class="badge <?= $statusClass ?>"><?= $statusText[$reg['status']] ?? $reg['status'] ?></span>
                                 </td>
-                                <td>
-                                    <a href="edit.php?id=<?= $reg['id'] ?>" class="btn-icon" title="แก้ไขข้อมูล"><i class="fas fa-pen"></i></a>
-                                    <a href="view.php?id=<?= $reg['id'] ?>" class="btn-icon" title="ดูรายละเอียด"><i class="fas fa-eye"></i></a>
+                                <td data-label="จัดการ" class="applicant-actions">
+                                    <a href="edit.php?id=<?= $reg['id'] ?>" class="btn-icon" title="แก้ไขข้อมูล" aria-label="แก้ไขข้อมูล"><i class="fas fa-pen" aria-hidden="true"></i><span class="action-label">แก้ไข</span></a>
+                                    <a href="view.php?id=<?= $reg['id'] ?>" class="btn-icon" title="ดูรายละเอียด" aria-label="ดูรายละเอียด"><i class="fas fa-eye" aria-hidden="true"></i><span class="action-label">ดูรายละเอียด</span></a>
                                     <?php if ($reg['status'] === 'pending'): ?>
-                                        <button class="btn-icon" onclick="updateStatus(<?= $reg['id'] ?>, 'approved')" title="อนุมัติ" style="color:var(--success);"><i class="fas fa-check"></i></button>
-                                        <button class="btn-icon" onclick="updateStatus(<?= $reg['id'] ?>, 'rejected')" title="ไม่อนุมัติ" style="color:var(--danger);"><i class="fas fa-times"></i></button>
+                                        <button class="btn-icon" onclick="updateStatus(<?= $reg['id'] ?>, 'approved')" title="อนุมัติ" style="color:var(--success);"><i class="fas fa-check" aria-hidden="true"></i><span class="action-label">อนุมัติ</span></button>
+                                        <button class="btn-icon" onclick="updateStatus(<?= $reg['id'] ?>, 'rejected')" title="ไม่อนุมัติ" style="color:var(--danger);"><i class="fas fa-times" aria-hidden="true"></i><span class="action-label">ไม่อนุมัติ</span></button>
                                     <?php endif; ?>
-                                    <button class="btn-icon" onclick="deleteRegistration(<?= $reg['id'] ?>)" title="ลบ" style="color:var(--danger);"><i class="fas fa-trash"></i></button>
+                                    <button class="btn-icon" onclick="deleteRegistration(<?= $reg['id'] ?>)" title="ลบ" aria-label="ลบผู้สมัคร" style="color:var(--danger);"><i class="fas fa-trash" aria-hidden="true"></i><span class="action-label">ลบ</span></button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

@@ -63,7 +63,7 @@ $statusClass = 'badge-' . $reg['status'];
     <div class="admin-container">
         <?php if (!empty($_SESSION['registration_notice'])): ?><p class="notice success" role="status"><?= htmlspecialchars($_SESSION['registration_notice']) ?></p><?php unset($_SESSION['registration_notice']); endif; ?>
         <!-- Status and Photo -->
-        <div style="display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap;align-items:start;">
+        <div class="applicant-profile" style="display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap;align-items:start;">
             <?php if ($reg['photo_file']): ?>
                 <img src="document.php?id=<?= $reg['id'] ?>&amp;field=photo_file" class="profile-photo" alt="รูปถ่ายผู้สมัคร">
             <?php else: ?>
