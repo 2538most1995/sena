@@ -59,7 +59,7 @@ function getDBConnection()
         // Auto-create table
         $conn->set_charset("utf8mb4");
         autoCreateTable($conn);
-        ensureSemesterSchema($conn);
+        ensureApplicationSchema($conn);
         return $conn;
     }
     $conn->set_charset("utf8mb4");
@@ -71,7 +71,7 @@ function getDBConnection()
         autoCreateTable($conn);
     }
 
-    ensureSemesterSchema($conn);
+    ensureApplicationSchema($conn);
     return $conn;
 }
 
@@ -427,6 +427,27 @@ function sendTestEmail($toEmail)
     } catch (\PHPMailer\PHPMailer\Exception $e) {
         return ['success' => false, 'message' => 'ส่งอีเมลไม่สำเร็จ: ' . $e->getMessage()];
     }
+}
+
+// Run migrations once per schema version, rather than scanning registrations on every request.
+function ensureApplicationSchema($conn) {
+    $version = $conn->query("SELECT setting_value FROM settings WHERE setting_key='schema_version'");
+    if ($version && ($version->fetch_assoc()['setting_value'] ?? '') === '2') return;
+    ensureSemesterSchema($conn);
+    $indexes = [];
+    $result = $conn->query('SHOW INDEX FROM registrations');
+    while ($row = $result->fetch_assoc()) $indexes[$row['Key_name']] = true;
+    foreach ([
+        'idx_term_date' => 'semester, created_at, id',
+        'idx_term_status_date' => 'semester, status, created_at, id',
+        'idx_term_level_date' => 'semester, education_level, created_at, id',
+        'idx_term_center_date' => 'semester, subdistrict_center, created_at, id',
+    ] as $name => $columns) {
+        if (!isset($indexes[$name]) && !$conn->query("ALTER TABLE registrations ADD INDEX `$name` ($columns)")) {
+            throw new Exception('เพิ่มดัชนีสำหรับรายการผู้สมัครไม่สำเร็จ');
+        }
+    }
+    if (!$conn->query("INSERT INTO settings (setting_key,setting_value) VALUES ('schema_version','2') ON DUPLICATE KEY UPDATE setting_value='2'")) throw new Exception('บันทึกรุ่นฐานข้อมูลไม่สำเร็จ');
 }
 
 // Existing applications are explicitly marked as legacy; never guess their term.

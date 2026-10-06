@@ -1,5 +1,7 @@
 <?php
 require_once '../config.php'; require_once 'auth.php';
+// Release the session lock before streaming, so document requests can run in parallel.
+session_write_close();
 $conn=getDBConnection(); $id=(int)($_GET['id'] ?? 0);$field=$_GET['field'] ?? '';
 $map=['photo_file'=>'photos','id_card_file'=>'id_cards','house_reg_file'=>'house_registrations','certificate_file'=>'certificates','certificate_back_file'=>'certificates'];
 if (!isset($map[$field])) { http_response_code(400); exit('เอกสารไม่ถูกต้อง'); }

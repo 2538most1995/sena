@@ -31,21 +31,28 @@ if ($filterStatus) {
     $params[] = $filterStatus;
     $types .= 's';
 }
-if ($search) {
-    $where[] = "(first_name LIKE ? OR last_name LIKE ? OR id_card_number LIKE ?)";
-    $searchParam = "%$search%";
-    $params[] = $searchParam;
-    $params[] = $searchParam;
-    $params[] = $searchParam;
-    $types .= 'sss';
+if ($search !== '') {
+    if (preg_match('/^[0-9]{13}$/D', $search)) {
+        $where[] = 'id_card_number = ?'; $params[] = $search; $types .= 's';
+    } else {
+        $where[] = '(first_name LIKE ? OR last_name LIKE ? OR id_card_number LIKE ?)';
+        $searchParam = "%$search%";
+        array_push($params, $searchParam, $searchParam, $searchParam); $types .= 'sss';
+    }
 }
 
-$sql = "SELECT * FROM registrations";
-if ($where) {
-    $sql .= " WHERE " . implode(" AND ", $where);
-}
+// Fetch only fields rendered by the list, not full addresses and family records.
+$sql = 'SELECT id,title,first_name,last_name,education_level,subdistrict_center,id_card_number,created_at,status,photo_file,id_card_file,house_reg_file FROM registrations WHERE ' . implode(' AND ', $where);
+
+// Statistics scoped to the selected semester; also reuse this count without filters.
+$stats = $conn->prepare("SELECT COUNT(*) total, COALESCE(SUM(status='pending'),0) pending, COALESCE(SUM(status='approved'),0) approved, COALESCE(SUM(status='rejected'),0) rejected FROM registrations WHERE semester=?");
+$stats->bind_param('s', $filterSemester); $stats->execute();
+extract($stats->get_result()->fetch_assoc());
+if (count($where) === 1) { $filteredTotal=(int)$total; } else {
+
 $countStmt=$conn->prepare('SELECT COUNT(*) total FROM registrations WHERE '.implode(' AND ',$where));
 $countStmt->bind_param($types,...$params);$countStmt->execute();$filteredTotal=(int)$countStmt->get_result()->fetch_assoc()['total'];
+}
 $perPage=20;$pages=max(1,(int)ceil($filteredTotal/$perPage));$page=max(1,min($pages,(int)($_GET['page'] ?? 1)));$offset=($page-1)*$perPage;
 $sql .= " ORDER BY created_at DESC, id DESC LIMIT $perPage OFFSET $offset";
 
@@ -57,10 +64,6 @@ $stmt->execute();
 $result = $stmt->get_result();
 $registrations = $result->fetch_all(MYSQLI_ASSOC);
 
-// Statistics scoped to the selected semester.
-$stats = $conn->prepare("SELECT COUNT(*) total, COALESCE(SUM(status='pending'),0) pending, COALESCE(SUM(status='approved'),0) approved, COALESCE(SUM(status='rejected'),0) rejected FROM registrations WHERE semester=?");
-$stats->bind_param('s', $filterSemester); $stats->execute();
-extract($stats->get_result()->fetch_assoc());
 $thaiMonths = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 ?>
 <!DOCTYPE html>
@@ -194,7 +197,7 @@ $thaiMonths = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
                                 <td data-label="ลำดับ" class="applicant-order"><?= $offset + $idx + 1 ?></td>
                                 <td data-label="รูปถ่าย" class="applicant-photo">
                                     <?php if ($reg['photo_file']): ?>
-                                        <img src="document.php?id=<?= $reg['id'] ?>&amp;field=photo_file" class="avatar" alt="รูปถ่ายผู้สมัคร">
+                                        <img src="document.php?id=<?= $reg['id'] ?>&amp;field=photo_file" class="avatar" alt="รูปถ่ายผู้สมัคร" loading="lazy" decoding="async" width="52" height="64">
                                     <?php else: ?>
                                         <div class="avatar" style="background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>
                                     <?php endif; ?>
