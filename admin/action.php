@@ -45,7 +45,7 @@ switch ($action) {
         try {
             if (!hash_equals(csrfToken(), $_POST['csrf'] ?? '')) throw new Exception('กรุณาโหลดหน้าใหม่ก่อนลบข้อมูล');
             $backup = backupAndClear($conn, null, $id, true);
-            echo json_encode(['success' => true, 'message' => 'สำรองและลบข้อมูลสำเร็จ', 'backup' => $backup]);
+            echo json_encode(['success' => true, 'message' => 'สำรองทั้งภาคเรียนและลบผู้สมัครที่เลือกสำเร็จ', 'backup' => $backup]);
         } catch (Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }

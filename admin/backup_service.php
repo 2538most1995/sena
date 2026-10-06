@@ -6,17 +6,16 @@ function backupDirectory() {
     if (!is_writable($dir)) throw new Exception('พื้นที่สำรองเขียนไม่ได้');
     return $dir;
 }
-function backupAndClear($conn, $semester = null, $id = null, $clear = false, $newSemester = null, $updates = null, $expectedRevision = null) {
+function backupAndClear($conn, $semester = null, $id = null, $clear = false, $newSemester = null) {
     if (!class_exists('ZipArchive')) throw new Exception('ไม่พบส่วนขยาย ZIP จึงยังไม่สามารถลบข้อมูลได้');
     $conn->begin_transaction();
     $path = null;
     try {
-        $stmt = $conn->prepare('SELECT * FROM registrations WHERE ' . ($id !== null ? 'id = ?' : 'semester = ?') . ' ORDER BY id FOR UPDATE');
+        $stmt = $conn->prepare('SELECT * FROM registrations WHERE ' . ($id !== null ? 'semester = (SELECT semester FROM (SELECT semester FROM registrations WHERE id = ?) AS selected_registration)' : 'semester = ?') . ' ORDER BY id FOR UPDATE');
         if ($id !== null) $stmt->bind_param('i', $id); else $stmt->bind_param('s', $semester);
         if (!$stmt->execute()) throw new Exception('อ่านข้อมูลสำรองไม่สำเร็จ');
         $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         if (!$rows) throw new Exception('ไม่พบข้อมูลสำหรับสำรอง');
-        if ($expectedRevision !== null && (count($rows)!==1 || !hash_equals($expectedRevision,hash('sha256',json_encode($rows[0]))))) throw new Exception('ข้อมูลถูกเปลี่ยนระหว่างแก้ไข กรุณาโหลดหน้าใหม่ก่อนบันทึก');
         $name = 'sena_' . str_replace('/', '-', $rows[0]['semester']) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.zip';
         $path = backupDirectory() . '/' . $name;
         $zip = new ZipArchive();
@@ -53,21 +52,11 @@ function backupAndClear($conn, $semester = null, $id = null, $clear = false, $ne
         if ($clear) {
             // Delete only the rows actually included in the verified archive.
             $delete = $conn->prepare('DELETE FROM registrations WHERE id=?');
-            foreach ($rows as $row) { $rid = (int)$row['id']; $delete->bind_param('i', $rid); if (!$delete->execute()) throw new Exception('ลบข้อมูลไม่สำเร็จ'); }
+            foreach ($rows as $row) { if ($id !== null && (int)$row['id'] !== $id) continue; $rid = (int)$row['id']; $delete->bind_param('i', $rid); if (!$delete->execute()) throw new Exception('ลบข้อมูลไม่สำเร็จ'); }
         }
         if ($newSemester !== null) {
             $move = $conn->prepare('UPDATE registrations SET semester=? WHERE id=?');
-            foreach ($rows as $row) { $rid = (int)$row['id']; $move->bind_param('si', $newSemester, $rid); if (!$move->execute()) throw new Exception('ย้ายภาคเรียนไม่สำเร็จ อาจมีเลขบัตรซ้ำในภาคเรียนปลายทาง'); }
-        }
-        if ($updates !== null) {
-            if ($id === null || count($rows) !== 1) throw new Exception('เลือกผู้สมัครให้ถูกต้อง');
-            $allowed = array_keys($rows[0]);
-            foreach (array_keys($updates) as $key) if (!in_array($key, $allowed, true) || in_array($key, ['id','created_at','updated_at'], true)) throw new Exception('ช่องข้อมูลไม่ถูกต้อง');
-            $sets = array_map(fn($key)=>'`'.$key.'`=?',array_keys($updates));
-            $edit = $conn->prepare('UPDATE registrations SET '.implode(',', $sets).' WHERE id=?');
-            $values = array_values($updates); $values[] = $id;
-            $edit->bind_param(str_repeat('s',count($updates)).'i',...$values);
-            if (!$edit->execute()) throw new Exception('บันทึกไม่ได้ อาจมีเลขบัตรซ้ำในภาคเรียนเดียวกัน');
+            foreach ($rows as $row) { if ($id !== null && (int)$row['id'] !== $id) continue; $rid = (int)$row['id']; $move->bind_param('si', $newSemester, $rid); if (!$move->execute()) throw new Exception('ย้ายภาคเรียนไม่สำเร็จ อาจมีเลขบัตรซ้ำในภาคเรียนปลายทาง'); }
         }
         if (!$conn->commit()) throw new Exception('บันทึกการทำรายการไม่สำเร็จ');
         // Retain source attachments as an additional recovery copy.

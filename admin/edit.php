@@ -1,5 +1,5 @@
 <?php
-require_once '../config.php'; require_once 'auth.php'; require_once 'backup_service.php';
+require_once '../config.php'; require_once 'auth.php'; require_once 'registration_service.php';
 $conn=getDBConnection(); $id=(int)($_GET['id'] ?? 0); $error='';
 $stmt=$conn->prepare('SELECT * FROM registrations WHERE id=?'); $stmt->bind_param('i',$id); $stmt->execute(); $reg=$stmt->get_result()->fetch_assoc();
 if (!$reg) { header('Location: index.php'); exit; }
@@ -38,18 +38,18 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             if (!$name) throw new Exception($doc[1].': รองรับภาพหรือ PDF ขนาดไม่เกิน 5 MB');
             $newFiles[]=$doc[0].$name; $updates[$field]=$name;
         }
-        $backup=backupAndClear($conn,null,$id,false,null,$updates,$_POST['revision'] ?? '');
-        $_SESSION['registration_notice']='สำรองข้อมูลเดิมและบันทึกการแก้ไขเรียบร้อย';
+        updateRegistration($conn,$id,$updates,$_POST['revision'] ?? '');
+        $_SESSION['registration_notice']='บันทึกการแก้ไขเรียบร้อย';
         header('Location: view.php?id='.$id); exit;
     } catch (Throwable $e) { foreach ($newFiles as $path) @unlink($path); $error=$e->getMessage(); $reg=array_merge($reg,array_intersect_key($_POST,$reg)); }
 }
 ?>
 <!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>แก้ไขผู้สมัคร</title><link rel="stylesheet" href="../css/style.css?v=<?= assetVersion('css/style.css') ?>"></head><body><header class="admin-header"><h1>แก้ไขข้อมูลผู้สมัคร #<?= $id ?></h1><a href="view.php?id=<?= $id ?>" class="btn btn-secondary">กลับไปดูรายละเอียด</a></header><main class="admin-container">
 <?php if ($error): ?><p class="notice error" role="alert"><?= htmlspecialchars($error) ?></p><?php endif; ?>
-<div class="welcome-note"><strong>ตรวจข้อมูลให้ถูกต้องก่อนบันทึก</strong><p>ระบบสำรองข้อมูลและเอกสารเดิมก่อนแก้ไข รวมถึงเมื่อเปลี่ยนภาคเรียนหรือแทนที่เอกสาร</p></div>
+<div class="welcome-note"><strong>ตรวจข้อมูลให้ถูกต้องก่อนบันทึก</strong><p>บันทึกการแก้ไขได้โดยไม่สร้างไฟล์สำรองอัตโนมัติ หากต้องการสำรอง ให้ไปที่หน้าจัดการภาคเรียน</p></div>
 <form method="post" enctype="multipart/form-data"><input type="hidden" name="revision" value="<?= htmlspecialchars($revision) ?>"><input type="hidden" name="csrf" value="<?= csrfToken() ?>">
 <?php foreach ($groups as $title=>$fields): ?><section class="detail-card"><h2><?= $title ?></h2><div class="form-grid"><?php foreach ($fields as $field=>$label): ?><div class="form-group"><label for="<?= $field ?>"><?= $label ?><?= in_array($field,$required,true) ? ' *' : '' ?></label>
 <?php if ($field==='status'): ?><select name="status" id="status"><?php foreach (['pending'=>'รอดำเนินการ','approved'=>'อนุมัติ','rejected'=>'ไม่อนุมัติ'] as $value=>$text): ?><option value="<?= $value ?>" <?= $reg[$field]===$value ? 'selected' : '' ?>><?= $text ?></option><?php endforeach; ?></select>
 <?php else: ?><input id="<?= $field ?>" name="<?= $field ?>" type="<?= $field==='birth_date' ? 'date' : ($field==='age' ? 'number' : 'text') ?>" value="<?= htmlspecialchars((string)($reg[$field] ?? '')) ?>" <?= in_array($field,$required,true) ? 'required' : '' ?> <?= $field==='age' ? 'readonly' : '' ?> <?= $field==='semester' ? 'list="term-options"' : '' ?>><?php endif; ?></div><?php endforeach; ?></div></section><?php endforeach; ?>
 <section class="detail-card"><h2>แทนที่เอกสารแนบ</h2><p>เลือกเฉพาะเอกสารที่ต้องการเปลี่ยน ขนาดไม่เกิน 5 MB ต่อไฟล์</p><div class="upload-grid"><?php foreach ($docs as $field=>$doc): ?><div class="form-group"><label for="<?= $field ?>"><?= $doc[1] ?></label><p><?= empty($reg[$field]) ? 'ยังไม่มีเอกสาร' : 'มีเอกสารแล้ว' ?></p><input id="<?= $field ?>" type="file" name="<?= $field ?>" accept="<?= $field==='photo_file' ? '.jpg,.jpeg,.png,.gif,.webp' : '.jpg,.jpeg,.png,.gif,.webp,.pdf' ?>"><img class="attachment-preview edit-preview" alt="ตัวอย่างเอกสารใหม่" hidden></div><?php endforeach; ?></div></section>
-<datalist id="term-options"><?php foreach (semesterOptions($conn) as $option): ?><option value="<?= htmlspecialchars($option) ?>"><?php endforeach; ?></datalist><div class="edit-toolbar"><a href="view.php?id=<?= $id ?>" class="btn btn-secondary">ยกเลิก</a><button class="btn btn-primary">สำรองและบันทึกการแก้ไข</button></div></form></main><script>document.querySelectorAll('input[type=file]').forEach(input=>input.addEventListener('change',()=>{const img=input.parentElement.querySelector('img');img.hidden=true;const file=input.files[0];if(!file)return;if(file.size>5242880){input.value='';alert('ไฟล์ต้องไม่เกิน 5 MB');return;}if(file.type.startsWith('image/')){const url=URL.createObjectURL(file);img.onload=()=>URL.revokeObjectURL(url);img.src=url;img.hidden=false;}}));</script></body></html>
+<datalist id="term-options"><?php foreach (semesterOptions($conn) as $option): ?><option value="<?= htmlspecialchars($option) ?>"><?php endforeach; ?></datalist><div class="edit-toolbar"><a href="view.php?id=<?= $id ?>" class="btn btn-secondary">ยกเลิก</a><button class="btn btn-primary">บันทึกการแก้ไข</button></div></form></main><script>document.querySelectorAll('input[type=file]').forEach(input=>input.addEventListener('change',()=>{const img=input.parentElement.querySelector('img');img.hidden=true;const file=input.files[0];if(!file)return;if(file.size>5242880){input.value='';alert('ไฟล์ต้องไม่เกิน 5 MB');return;}if(file.type.startsWith('image/')){const url=URL.createObjectURL(file);img.onload=()=>URL.revokeObjectURL(url);img.src=url;img.hidden=false;}}));</script></body></html>

@@ -1,6 +1,11 @@
 <?php
-require __DIR__.'/../config.php'; require __DIR__.'/../admin/backup_service.php';
+require __DIR__.'/../config.php'; require __DIR__.'/../admin/backup_service.php'; require __DIR__.'/../admin/registration_service.php';
 function check($condition,$message) { if (!$condition) throw new RuntimeException($message); }
+function registrationRevision($conn,$id) {
+    $stmt=$conn->prepare('SELECT * FROM registrations WHERE id=?');
+    $stmt->bind_param('i',$id);$stmt->execute();
+    return hash('sha256',json_encode($stmt->get_result()->fetch_assoc()));
+}
 $conn=new mysqli(DB_HOST,DB_USER,DB_PASS,'',DB_PORT);
 $db='sena_test_'.bin2hex(random_bytes(6));$archives=[];$fixture=null;
 putenv('SENA_BACKUP_DIR='.sys_get_temp_dir().'/'.$db);
@@ -25,12 +30,16 @@ try {
     $stmt=$conn->prepare('UPDATE registrations SET photo_file=? WHERE id=?');$stmt->bind_param('si',$filename,$id);$stmt->execute();
     $archives[]=backupAndClear($conn,null,$id,false);
     check($conn->query('SELECT id FROM registrations')->num_rows===2,'Backup alone preserves records');
-    $stale=hash('sha256',json_encode($conn->query("SELECT * FROM registrations WHERE id=$id")->fetch_assoc()));
-    $archives[]=backupAndClear($conn,null,$id,false,null,['first_name'=>'after']);
-    $failed=false;try{backupAndClear($conn,null,$id,false,null,['first_name'=>'stale'],$stale);}catch(Throwable $e){$failed=true;}check($failed,'Stale edit rejected');
+    $stale=registrationRevision($conn,$id);
+    $archiveCount=count(glob(backupDirectory().'/sena_*.zip'));
+    updateRegistration($conn,$id,['first_name'=>'after'],$stale);
+    check(count(glob(backupDirectory().'/sena_*.zip'))===$archiveCount,'Edit creates no archive');
+    $failed=false;try{updateRegistration($conn,$id,['first_name'=>'stale'],$stale);}catch(Throwable $e){$failed=true;}check($failed,'Stale edit rejected');
     check($conn->query("SELECT first_name FROM registrations WHERE id=$id")->fetch_assoc()['first_name']==='after','Edit transaction');
-    $failed=false;try {backupAndClear($conn,null,$id,false,'1/2569');}catch(Throwable $e){$failed=true;}
+    $revision=registrationRevision($conn,$id);
+    $failed=false;try {updateRegistration($conn,$id,['semester'=>'1/2569','first_name'=>'conflict'],$revision);}catch(Throwable $e){$failed=true;}
     check($failed && $conn->query("SELECT semester FROM registrations WHERE id=$id")->fetch_assoc()['semester']==='2/2569','Conflicting move rolls back');
+    check(count(glob(backupDirectory().'/sena_*.zip'))===$archiveCount,'Rejected edits create no archive');
     $archives[]=backupAndClear($conn,'2/2569',null,true);$restore=end($archives);
     check($conn->query('SELECT id FROM registrations')->num_rows===1,'Semester clear isolation');check(cleanupArchivedFiles($conn,$restore)['removed']===1,'Clear backed-up source attachment');
     $result=restoreBackup($conn,$restore);check($result['restored']===1 && is_file($fixture),'Restore row and attachment');
@@ -41,7 +50,13 @@ try {
     $failed=false;try{restoreBackup($conn,$restore);}catch(Throwable $e){$failed=true;}
     check($failed && $conn->query('SELECT id FROM registrations')->num_rows===2,'Corrupt archive rejected without writes');
     $failed=false;try{inspectBackup('../escape.zip');}catch(Throwable $e){$failed=true;}check($failed,'Unsafe backup path rejected');
-    echo "PASS: legacy migration; semester uniqueness; missing-document rollback; backup-only; backed-up edit; conflicting move rollback; semester isolation; restore data/files; duplicate restore; new IDs; corruption rejection; unsafe path rejection\n";
+    check($conn->query("INSERT INTO registrations (education_level,subdistrict_center,title,first_name,last_name,birth_date,id_card_number,semester) VALUES ('test','test','test','other','test','2000-01-01','9876543210123','2/2569')"),'Create same-term applicant');
+    $otherId=(int)$conn->insert_id;
+    $archives[]=backupAndClear($conn,null,$newId,true);
+    check(count(inspectBackup(end($archives))['data']['registrations'])===2,'Single deletion backs up whole semester');
+    check($conn->query("SELECT id FROM registrations WHERE id=$otherId")->num_rows===1,'Single deletion preserves other applicant');
+    check($conn->query("SELECT id FROM registrations WHERE id=$newId")->num_rows===0,'Single deletion removes selected applicant');
+    echo "PASS: legacy migration; semester uniqueness; missing-document rollback; backup-only; edit without archive; stale edit rejection; semester backup before single deletion; conflicting move rollback; semester isolation; restore data/files; duplicate restore; new IDs; corruption rejection; unsafe path rejection\n";
 } finally {
     foreach($archives as $name) if(is_file(backupDirectory().'/'.$name)) unlink(backupDirectory().'/'.$name);
     if($fixture && is_file($fixture)) unlink($fixture);
