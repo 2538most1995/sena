@@ -4,22 +4,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Environment values take precedence over the private, untracked local config.
-$localConfigFile = __DIR__ . '/config.local.php';
-$localConfig = is_file($localConfigFile) ? require $localConfigFile : [];
-function senaConfig($env, $key, $default = '') {
-    global $localConfig;
-    $value = getenv($env);
-    return $value !== false ? $value : ($localConfig[$key] ?? $default);
-}
-define('DB_HOST', senaConfig('DB_HOST', 'db_host', 'localhost'));
-define('DB_PORT', (int)senaConfig('DB_PORT', 'db_port', 8889));
-define('DB_USER', senaConfig('DB_USER', 'db_user', 'root'));
-define('DB_PASS', senaConfig('DB_PASS', 'db_password'));
-define('DB_NAME', senaConfig('SENA_DB_NAME', 'db_name', 'phaisali_registration'));
-define('SMTP_USER', senaConfig('SMTP_USER', 'smtp_user'));
-define('SMTP_PASSWORD', senaConfig('SMTP_PASSWORD', 'smtp_password'));
-define('SMTP_FROM', senaConfig('SMTP_FROM', 'smtp_from', SMTP_USER));
+// Load this machine's private settings without overwriting server constants.
+require_once __DIR__ . '/runtime_config.php';
 
 // Upload paths
 define('UPLOAD_DIR', __DIR__ . '/uploads/');

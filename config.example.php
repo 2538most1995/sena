@@ -1,11 +1,12 @@
 <?php
-// Copy to config.local.php and fill in this server's values.
+// Copy ONCE to config.local.php, then fill in this server's actual values.
+// Never copy this template over an existing config.local.php during deployment.
 return [
-    'db_host' => 'localhost',
-    'db_port' => 8889,
-    'db_user' => 'root',
-    'db_password' => '',
-    'db_name' => 'phaisali_registration',
+    'DB_HOST' => '',
+    'DB_USER' => '',
+    'DB_PASS' => '',
+    'DB_NAME' => '',
+    'DB_PORT' => '',
     'smtp_user' => '',
     'smtp_password' => '',
     'smtp_from' => '',

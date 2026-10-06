@@ -11,12 +11,22 @@
 ## ติดตั้งจาก GitHub
 
 1. Clone repository และรัน `composer install`
-2. คัดลอก `config.example.php` เป็น `config.local.php` แล้วใส่ค่าฐานข้อมูลและ SMTP ของเครื่อง
+2. เฉพาะติดตั้งครั้งแรก: คัดลอก `config.example.php` เป็น `config.local.php` แล้วใส่ DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT และ SMTP ของเครื่องนั้น ห้ามคัดลอกทับไฟล์ที่มีอยู่
 3. เปิด MySQL และ PHP 8.1+ พร้อม mysqli, fileinfo และ zip
 4. เปิดเว็บผ่าน Apache ของ MAMP หรือคำสั่ง preview ข้างต้น ระบบสร้างตารางให้อัตโนมัติ
 5. ระบบใหม่ใช้รหัสเจ้าหน้าที่เริ่มต้น `1234` ให้เปลี่ยนที่เมนูตั้งค่าก่อนเปิดใช้งานจริง
 
 Git ไม่เก็บ config.local.php, vendor, ข้อมูลผู้สมัคร, ไฟล์แนบส่วนตัว หรือ ZIP สำรอง เมื่อติดตั้งเครื่องใหม่ต้องย้ายฐานข้อมูล/สำรองผ่านช่องทางส่วนตัวแยกจากโค้ด
+
+## อัปเดตเซิร์ฟเวอร์โดยรักษาค่าฐานข้อมูล
+
+- `config.php` และ `runtime_config.php` เป็นตัวโหลดกลาง ไม่มีค่า host/user/password/name/port ของ MAMP เป็นค่าเริ่มต้น
+- เก็บค่าฐานข้อมูลจริงทั้ง 5 ค่าไว้ใน `config.local.php` บนเซิร์ฟเวอร์ ไฟล์นี้ถูก Git ignore จึงไม่ถูกแทนที่ด้วย `git pull` ตามปกติ
+- หากเซิร์ฟเวอร์เดิมแก้ DB_* ไว้ใน config.php ให้ย้ายค่าทั้ง 5 ไป config.local.php ก่อนอัปเดตครั้งแรก ส่วนไฟล์ tracked ที่แก้เองอาจทำให้ Git แจ้ง conflict
+- รองรับ config.local.php ที่คืน array ด้วยชื่อ DB_* หรือชื่อเดิม db_host/db_user/db_password/db_name/db_port และรองรับไฟล์ที่ define DB_* โดยตรง
+- รองรับ Environment Variable ชื่อ DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT; ยังรองรับ SENA_DB_NAME เป็นชื่อสำรองสำหรับทดสอบ
+- ถ้ามีการ define DB_* ก่อนโหลดระบบ จะรักษาค่าเดิมทั้งหมด ถ้าไม่มีค่าใดครบ ระบบจะแจ้งให้ตั้งค่าแทนการเลือกใช้ค่าของ MAMP
+- การ deploy ด้วย FTP/rsync ต้องยกเว้น config.local.php ด้วย ห้ามใช้ `git clean -x` ซึ่งลบไฟล์ ignored และห้ามรันคำสั่งคัดลอก template ทับทุกครั้ง
 
 ## ภาคเรียน
 - เปิดรับสมัครเริ่มต้น 2/2569 เปลี่ยนได้ที่ เจ้าหน้าที่ → จัดการภาคเรียน
@@ -46,6 +56,7 @@ Git ไม่เก็บ config.local.php, vendor, ข้อมูลผู้�
 
 ```sh
 /Applications/MAMP/bin/php/php8.3.14/bin/php tests/integration.php
+/Applications/MAMP/bin/php/php8.3.14/bin/php tests/configuration.php
 ```
 
 ชุดทดสอบสร้างฐานข้อมูลและไฟล์ชั่วคราวแล้วล้างออก: ย้าย schema เดิม, ความซ้ำภายใน/ข้ามภาคเรียน, สำรองอย่างเดียว, แก้ไขพร้อมสำรอง, ย้ายชนภาคเรียน, ล้างเฉพาะภาคเรียน, ลบไฟล์ที่สำรองแล้ว, กู้คืนทะเบียน/เอกสาร, กู้คืนซ้ำ, ปฏิเสธ ZIP เสีย และป้องกัน path traversal
