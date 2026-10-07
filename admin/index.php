@@ -297,30 +297,33 @@ $thaiMonths = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
         function deleteRegistration(id) {
             Swal.fire({
                 title: 'ลบข้อมูลผู้สมัคร?',
-                text: 'ระบบจะสำรองทั้งภาคเรียนก่อนลบเฉพาะผู้สมัครที่เลือก ดาวน์โหลด ZIP ได้จากหน้าจัดการภาคเรียน',
+                text: 'เลือกวิธีลบข้อมูลผู้สมัครรายนี้ ไฟล์แนบต้นฉบับยังเก็บไว้บนเซิร์ฟเวอร์',
+                showDenyButton: true,
+                denyButtonText: 'ลบและสำรอง',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: 'ใช่, ลบเลย',
+                confirmButtonText: 'ลบโดยไม่สำรอง',
                 cancelButtonText: 'ยกเลิก',
                 background: '#ffffff',
                 color: '#203c35'
             }).then((result) => {
-                if (result.isConfirmed) {
+                if (result.isConfirmed || result.isDenied) {
                     fetch('action.php', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded'
                             },
-                            body: `action=delete&id=${id}&csrf=<?= csrfToken() ?>`
+                            body: `action=delete&id=${id}&delete_mode=${result.isDenied ? 'backup' : 'delete'}&csrf=<?= csrfToken() ?>`
                         })
                         .then(r => r.json())
                         .then(data => {
                             if (data.success) {
                                 Swal.fire({
                                         icon: 'success',
-                                        title: 'สำรองและลบสำเร็จ',
+                                        title: 'ลบข้อมูลสำเร็จ',
+                                        text: data.message,
                                         background: '#ffffff',
                                         color: '#203c35',
                                         confirmButtonColor: '#126454'

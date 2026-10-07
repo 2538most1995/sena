@@ -11,7 +11,7 @@ function backupAndClear($conn, $semester = null, $id = null, $clear = false, $ne
     $conn->begin_transaction();
     $path = null;
     try {
-        $stmt = $conn->prepare('SELECT * FROM registrations WHERE ' . ($id !== null ? 'semester = (SELECT semester FROM (SELECT semester FROM registrations WHERE id = ?) AS selected_registration)' : 'semester = ?') . ' ORDER BY id FOR UPDATE');
+        $stmt = $conn->prepare('SELECT * FROM registrations WHERE ' . ($id !== null ? 'id = ?' : 'semester = ?') . ' ORDER BY id FOR UPDATE');
         if ($id !== null) $stmt->bind_param('i', $id); else $stmt->bind_param('s', $semester);
         if (!$stmt->execute()) throw new Exception('อ่านข้อมูลสำรองไม่สำเร็จ');
         $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -154,4 +154,13 @@ function cleanupArchivedFiles($conn,$name) {
         if(@unlink($path))$counts['removed']++;else $counts['errors']++;
     }
     return $counts;
+}
+
+// Explicit deletion without creating an archive; source attachments are retained.
+function deleteWithoutBackup($conn, $semester = null, $id = null) {
+    if ($id === null && $semester === null) throw new Exception('กรุณาเลือกข้อมูลที่จะลบ');
+    $stmt = $conn->prepare('DELETE FROM registrations WHERE ' . ($id !== null ? 'id=?' : 'semester=?'));
+    if ($id !== null) $stmt->bind_param('i', $id); else $stmt->bind_param('s', $semester);
+    if (!$stmt->execute()) throw new Exception('ลบข้อมูลไม่สำเร็จ');
+    if (!$stmt->affected_rows) throw new Exception('ไม่พบข้อมูลที่จะลบ');
 }

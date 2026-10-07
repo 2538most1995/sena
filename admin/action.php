@@ -44,8 +44,12 @@ switch ($action) {
     case 'delete':
         try {
             if (!hash_equals(csrfToken(), $_POST['csrf'] ?? '')) throw new Exception('กรุณาโหลดหน้าใหม่ก่อนลบข้อมูล');
-            $backup = backupAndClear($conn, null, $id, true);
-            echo json_encode(['success' => true, 'message' => 'สำรองทั้งภาคเรียนและลบผู้สมัครที่เลือกสำเร็จ', 'backup' => $backup]);
+            $mode = $_POST['delete_mode'] ?? '';
+            if (!in_array($mode, ['delete', 'backup'], true)) throw new Exception('กรุณาเลือก ลบ หรือ ลบและสำรอง');
+            $backup = null;
+            if ($mode === 'backup') $backup = backupAndClear($conn, null, $id, true);
+            else deleteWithoutBackup($conn, null, $id);
+            echo json_encode(['success' => true, 'message' => $mode === 'backup' ? 'ลบและสำรองผู้สมัครที่เลือกสำเร็จ' : 'ลบผู้สมัครสำเร็จโดยไม่สร้างไฟล์สำรอง', 'backup' => $backup]);
         } catch (Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }

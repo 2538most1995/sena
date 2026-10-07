@@ -1,5 +1,5 @@
 <?php
-require __DIR__.'/../config.php'; require __DIR__.'/../admin/backup_service.php'; require __DIR__.'/../admin/registration_service.php';
+require __DIR__.'/../config.php'; require __DIR__.'/../admin/backup_service.php'; require __DIR__.'/../admin/registration_service.php'; require __DIR__.'/../admin/export_service.php';
 function check($condition,$message) { if (!$condition) throw new RuntimeException($message); }
 function registrationRevision($conn,$id) {
     $stmt=$conn->prepare('SELECT * FROM registrations WHERE id=?');
@@ -30,6 +30,12 @@ try {
     $stmt=$conn->prepare('UPDATE registrations SET photo_file=? WHERE id=?');$stmt->bind_param('si',$filename,$id);$stmt->execute();
     $archives[]=backupAndClear($conn,null,$id,false);
     check($conn->query('SELECT id FROM registrations')->num_rows===2,'Backup alone preserves records');
+    $exportRows=inspectBackup(end($archives))['data']['registrations'];
+    check(count($exportRows)===1 && (int)$exportRows[0]['id']===$id,'Individual archive contains selected student only');
+    $exportPath=createStudentExport($exportRows);
+    $exportZip=new ZipArchive();check($exportZip->open($exportPath)===true && $exportZip->numFiles===3,'Export contains CSV DOCX and photo');
+    $exportZip->close();unlink($exportPath);
+    check(count(glob(backupDirectory().'/sena_*.zip'))===1,'Download export creates no persistent backup');
     $stale=registrationRevision($conn,$id);
     $archiveCount=count(glob(backupDirectory().'/sena_*.zip'));
     updateRegistration($conn,$id,['first_name'=>'after'],$stale);
@@ -53,10 +59,16 @@ try {
     check($conn->query("INSERT INTO registrations (education_level,subdistrict_center,title,first_name,last_name,birth_date,id_card_number,semester) VALUES ('test','test','test','other','test','2000-01-01','9876543210123','2/2569')"),'Create same-term applicant');
     $otherId=(int)$conn->insert_id;
     $archives[]=backupAndClear($conn,null,$newId,true);
-    check(count(inspectBackup(end($archives))['data']['registrations'])===2,'Single deletion backs up whole semester');
+    check(count(inspectBackup(end($archives))['data']['registrations'])===1,'Single deletion backs up selected applicant only');
     check($conn->query("SELECT id FROM registrations WHERE id=$otherId")->num_rows===1,'Single deletion preserves other applicant');
     check($conn->query("SELECT id FROM registrations WHERE id=$newId")->num_rows===0,'Single deletion removes selected applicant');
-    echo "PASS: legacy migration; semester uniqueness; missing-document rollback; backup-only; edit without archive; stale edit rejection; semester backup before single deletion; conflicting move rollback; semester isolation; restore data/files; duplicate restore; new IDs; corruption rejection; unsafe path rejection\n";
+    $archiveCount=count(glob(backupDirectory().'/sena_*.zip'));
+    deleteWithoutBackup($conn,null,$otherId);
+    check($conn->query("SELECT id FROM registrations WHERE id=$otherId")->num_rows===0,'Delete without backup removes selected applicant');
+    check(count(glob(backupDirectory().'/sena_*.zip'))===$archiveCount,'Delete without backup creates no archive');
+    deleteWithoutBackup($conn,'1/2569');
+    check($conn->query('SELECT id FROM registrations')->num_rows===0,'Semester deletion without backup');
+    echo "PASS: legacy migration; semester uniqueness; missing-document rollback; backup-only; edit without archive; stale edit rejection; selected applicant backup before deletion; deletion without backup; conflicting move rollback; semester isolation; restore data/files; duplicate restore; new IDs; corruption rejection; unsafe path rejection\n";
 } finally {
     foreach($archives as $name) if(is_file(backupDirectory().'/'.$name)) unlink(backupDirectory().'/'.$name);
     if($fixture && is_file($fixture)) unlink($fixture);
