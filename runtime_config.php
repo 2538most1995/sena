@@ -39,6 +39,10 @@ foreach ($databaseKeys as $constant => $key) {
 }
 foreach ($databaseValues as $constant => $value) if (!defined($constant)) define($constant, $value);
 
-if (!defined('SMTP_USER')) define('SMTP_USER', senaConfig('SMTP_USER', 'smtp_user', ''));
+if (!defined('SMTP_USER')) define('SMTP_USER', trim((string)senaConfig('SMTP_USER', 'smtp_user', '')));
 if (!defined('SMTP_PASSWORD')) define('SMTP_PASSWORD', senaConfig('SMTP_PASSWORD', 'smtp_password', ''));
-if (!defined('SMTP_FROM')) define('SMTP_FROM', senaConfig('SMTP_FROM', 'smtp_from', SMTP_USER));
+if (!defined('SMTP_FROM')) {
+    $smtpFrom = trim((string)senaConfig('SMTP_FROM', 'smtp_from', ''));
+    // Empty local/environment values must also fall back to the Gmail account.
+    define('SMTP_FROM', $smtpFrom !== '' ? $smtpFrom : SMTP_USER);
+}

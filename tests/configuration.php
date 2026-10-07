@@ -4,10 +4,10 @@ $root=dirname(__DIR__);$temporary=sys_get_temp_dir().'/sena_config_'.bin2hex(ran
 $keys=['DB_HOST','DB_USER','DB_PASS','DB_NAME','DB_PORT','SENA_DB_NAME','SMTP_USER','SMTP_PASSWORD','SMTP_FROM'];
 $baseEnv=getenv();foreach($keys as $key)unset($baseEnv[$key]);
 function configCheck($ok,$message){if(!$ok)throw new RuntimeException($message);}
-function configRun($directory,$environment,$prefix=''){
+function configRun($directory,$environment,$prefix='',$expression='[DB_HOST,DB_USER,DB_PASS,DB_NAME,DB_PORT]'){
     // Some proc_open implementations omit empty environment entries. Set them explicitly.
     $emptyEnv='';foreach($environment as $key=>$value)if($value==='')$emptyEnv.='putenv('.var_export($key.'=',true).');';
-    $code=$emptyEnv.$prefix.'require '.var_export($directory.'/runtime_config.php',true).'; echo json_encode([DB_HOST,DB_USER,DB_PASS,DB_NAME,DB_PORT]);';
+    $code=$emptyEnv.$prefix.'require '.var_export($directory.'/runtime_config.php',true).'; echo json_encode('.$expression.');';
     $process=proc_open([PHP_BINARY,'-r',$code],[1=>['pipe','w'],2=>['pipe','w']],$pipes,null,$environment);
     $out=stream_get_contents($pipes[1]);$error=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);$exit=proc_close($process);
     return [$exit,$out,$error];
@@ -28,6 +28,13 @@ try{
     file_put_contents($temporary.'/config.local.php','<?php '.$prefix);
     [$exit,$out]=configRun($temporary,$baseEnv);configCheck($exit===0 && json_decode($out,true)===array_values($values),'Private config may define server constants directly');
     file_put_contents($temporary.'/config.local.php',$local);
+    $smtpValues=$values+['smtp_user'=>' sender@example.com ','smtp_from'=>'   '];
+    file_put_contents($temporary.'/config.local.php','<?php return '.var_export($smtpValues,true).';');
+    [$exit,$out]=configRun($temporary,$baseEnv,'','[SMTP_USER,SMTP_FROM]');configCheck($exit===0 && json_decode($out,true)===['sender@example.com','sender@example.com'],'Blank local sender falls back to trimmed SMTP user');
+    [$exit,$out]=configRun($temporary,array_merge($baseEnv,['SMTP_FROM'=>'']),'','[SMTP_FROM]');configCheck($exit===0 && json_decode($out,true)===['sender@example.com'],'Empty environment sender falls back to SMTP user');
+    [$exit,$out]=configRun($temporary,array_merge($baseEnv,['SMTP_FROM'=>' alternate@example.com ']),'','[SMTP_FROM]');configCheck($exit===0 && json_decode($out,true)===['alternate@example.com'],'Explicit sender preserved and trimmed');
+    [$exit,$out]=configRun($temporary,$baseEnv,"define('SMTP_FROM','constant@example.com');",'[SMTP_FROM]');configCheck($exit===0 && json_decode($out,true)===['constant@example.com'],'Predefined sender preserved');
+    file_put_contents($temporary.'/config.local.php',$local);
     [$exit]=configRun($temporary,array_merge($baseEnv,['DB_PORT'=>'0']));configCheck($exit!==0,'Invalid port rejected');
-    echo "PASS: missing config fails; all five production values preserved after code update; environment values; predefined constants; legacy alias; constant-style private config; invalid port rejected\n";
+    echo "PASS: database configuration; SMTP sender fallback, trimming, environment override and predefined constant\n";
 }finally{foreach(glob($temporary.'/*') as $file)unlink($file);rmdir($temporary);}
